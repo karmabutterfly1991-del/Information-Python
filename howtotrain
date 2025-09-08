@@ -1,0 +1,7 @@
+# เทรน AI จากข้อมูลทุกแถว ทุกคอลัมน์
+python train_from_db.py 2024-12-01 2025-04-30
+
+
+อัปเกรดสมอง” → แก้ analysis.py
+“อัปเกรดท่อข้อมูลเทรน” → แก้ train_from_db.py
+“อัปเกรดการตั้งค่า/ไลบรารี” → local_ai_config.py และ requirements.txt

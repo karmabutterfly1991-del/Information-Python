@@ -1,0 +1,6 @@
+pip install Flask pandas pyodbc plotly
+
+✅ สรุป:
+ระบบใช้ข้อมูลจาก 2 View หลัก:
+Vdetails_CPC_TRUC - ข้อมูลรายละเอียด (หลัก)
+VsumcanetypeSum - ข้อมูลสรุป (รอง)

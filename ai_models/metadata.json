@@ -1,0 +1,11 @@
+{
+  "trained_at": "2025-09-08 12:07:20",
+  "train_range": {
+    "start": "2024-12-01",
+    "end": "2025-04-30"
+  },
+  "days_used": 110,
+  "total_records_used": 113609,
+  "data_source": "ALL ROWS AND COLUMNS from Vdetails_CPC_TRUC",
+  "model_path": "ai_models/"
+}

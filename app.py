@@ -1,4 +1,6 @@
 import os
+import pyodbc
+import configparser
 import pandas as pd
 from datetime import datetime, timedelta, time
 from flask import Flask, render_template, request, jsonify
@@ -8,9 +10,37 @@ import traceback
 # Make sure you have the analysis.py file in the same directory
 from analysis import generate_analysis
 from advanced_hourly_analysis import analyze_hourly_data_advanced, predict_hourly_performance
-from db_config import get_connection
 
 # Weather Impact Model removed
+
+# --- Database Configuration ---
+def get_connection():
+    """Creates and returns a database connection."""
+    config = configparser.ConfigParser()
+    # Assuming config.ini is in the same directory as the script
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
+    if not os.path.exists(config_path):
+        raise FileNotFoundError("config.ini file not found. Please ensure it is in the same folder.")
+    
+    config.read(config_path, encoding='utf-8')
+    db_config = config['DATABASE']
+
+    required_fields = ['SERVER', 'DATABASE', 'UID']
+    if not all(field in db_config for field in required_fields):
+        raise ValueError("Missing required settings (SERVER, DATABASE, UID) in config.ini")
+
+    conn_str = (
+        f"DRIVER={db_config.get('DRIVER', '{ODBC Driver 17 for SQL Server}')};"
+        f"SERVER={db_config['SERVER']};DATABASE={db_config['DATABASE']};UID={db_config['UID']};"
+        f"PWD={db_config.get('PWD', '')};TrustServerCertificate=yes;"
+    )
+    timeout = db_config.getint('TIMEOUT', 10)
+    
+    try:
+        return pyodbc.connect(conn_str, timeout=timeout)
+    except pyodbc.Error as e:
+        print(f"Database connection error: {e}")
+        raise
 
 # --- Flask Application ---
 app = Flask(__name__)

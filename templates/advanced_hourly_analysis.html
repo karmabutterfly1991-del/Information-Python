@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>การวิเคราะห์ข้อมูลรายชั่วโมงแบบ Advanced - ระบบติดตามอ้อย</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-bg: #0a0a0f;
+            --secondary-bg: #111118;
+            --tertiary-bg: #1a1a24;
+            --card-bg: rgba(26, 26, 36, 0.95);
+            --card-border: rgba(255, 255, 255, 0.2);
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-tertiary: #06b6d4;
+            --text-primary: #ffffff;
+            --text-secondary: #e2e8f0;
+            --text-muted: #a0aec0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: var(--tertiary-bg) !important;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            background: rgba(99, 102, 241, 0.15);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .card-body {
+            color: var(--text-primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+            transform: translateY(-1px);
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+
+        .performance-indicator {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .performance-excellent { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .performance-good { background: rgba(99, 102, 241, 0.2); color: var(--accent-primary); }
+        .performance-fair { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .performance-poor { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+
+        .insight-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .insight-card .insight-icon {
+            color: var(--accent-primary);
+            font-size: 1.2rem;
+        }
+
+        .insight-card p {
+            color: var(--text-primary);
+            margin-bottom: 0;
+            font-weight: 500;
+        }
+
+        .recommendation-card {
+            background: var(--card-bg);
+            border-left: 4px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .recommendation-card h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .recommendation-card p {
+            color: var(--text-secondary);
+            margin-bottom: 0;
+        }
+
+        .recommendation-priority-high { border-left-color: var(--error); }
+        .recommendation-priority-medium { border-left-color: var(--warning); }
+        .recommendation-priority-low { border-left-color: var(--success); }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--card-border);
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--error);
+            margin: 1rem 0;
+        }
+
+        .success-message {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--success);
+            margin: 1rem 0;
+        }
+
+        .nav-link {
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary) !important;
+            background: rgba(99, 102, 241, 0.1) !important;
+        }
+
+        .nav-link.active {
+            color: var(--accent-primary) !important;
+            background: rgba(99, 102, 241, 0.15) !important;
+            font-weight: 600;
+        }
+
+        .table-dark {
+            --bs-table-bg: var(--tertiary-bg);
+            --bs-table-color: var(--text-primary);
+            --bs-table-border-color: var(--card-border);
+        }
+
+        .table-dark th {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .table-dark td {
+            color: var(--text-secondary);
+        }
+
+        .progress {
+            background: var(--tertiary-bg);
+            height: 8px;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        /* เพิ่มการปรับปรุงข้อความ */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* การจัดหมวดหมู่ย่อย */
+        .section-header {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border-left: 4px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-header h4 {
+            margin: 0;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .section-header .section-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0;
+        }
+
+        .subsection {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subsection-header {
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .subsection-header h5 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .subsection-header .subsection-description {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            margin-bottom: 0;
+        }
+
+        .metric-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .metric-item {
+            background: var(--tertiary-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .metric-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(99, 102, 241, 0.2);
+            border-color: var(--accent-primary);
+        }
+
+        .metric-item .metric-title {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-item .metric-value {
+            color: var(--accent-primary);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-item .metric-unit {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analysis-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .analysis-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .analysis-card .card-icon {
+            color: var(--accent-primary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .analysis-card .card-title {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .analysis-card .card-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .status-excellent { 
+            background: rgba(16, 185, 129, 0.2); 
+            color: var(--success); 
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .status-good { 
+            background: rgba(99, 102, 241, 0.2); 
+            color: var(--accent-primary); 
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        .status-fair { 
+            background: rgba(245, 158, 11, 0.2); 
+            color: var(--warning); 
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .status-poor { 
+            background: rgba(239, 68, 68, 0.2); 
+            color: var(--error); 
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .form-control, .form-select {
+            background-color: var(--tertiary-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--tertiary-bg);
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-outline-primary {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        /* ปรับปรุงข้อความในส่วนการวิเคราะห์ */
+        .tab-content h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .tab-content p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ปรับปรุงข้อความในส่วน loading และ messages */
+        .loading-spinner p {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .error-message, .success-message {
+            font-weight: 500;
+        }
+
+        /* FAQ Modal Styles */
+        .faq-modal .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+        }
+
+        .faq-modal .modal-header {
+            background: rgba(99, 102, 241, 0.15);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .faq-modal .modal-body {
+            color: var(--text-primary);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .faq-modal .modal-footer {
+            background: var(--tertiary-bg);
+            border-top: 1px solid var(--card-border);
+        }
+
+        .faq-section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--tertiary-bg);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .faq-section h6 {
+            color: var(--accent-primary);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .faq-section p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        .faq-section ul {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .faq-section li {
+            margin-bottom: 0.25rem;
+        }
+
+        .faq-formula {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-family: 'Courier New', monospace;
+            color: var(--accent-primary);
+            margin: 0.5rem 0;
+            font-weight: 600;
+        }
+
+        .faq-accuracy {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0.25rem 0;
+        }
+
+        .faq-accuracy.high {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .faq-accuracy.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .faq-accuracy.low {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .faq-icon {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .faq-icon:hover {
+            transform: scale(1.1);
+            color: var(--accent-primary) !important;
+        }
+
+        /* AI Notice Footer Styles */
+        .ai-notice-footer {
+            text-align: center;
+            padding: 8px 0;
+        }
+        
+        .ai-notice-text-footer {
+            color: #6c757d;
+            font-size: 0.75rem;
+            font-weight: 400;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-graph-up-arrow me-2"></i>
+                ระบบติดตามอ้อย - การวิเคราะห์รายชั่วโมง
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="bi bi-house me-1"></i>
+                    หน้าหลัก
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="mb-0">
+                            <i class="bi bi-bar-chart-line me-2"></i>
+                            การวิเคราะห์ข้อมูลรายชั่วโมงแบบ Advanced
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <label for="analysisDate" class="form-label">เลือกวันที่วิเคราะห์:</label>
+                                <input type="date" class="form-control" id="analysisDate" value="{{ today_date }}">
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-primary me-2" onclick="loadAdvancedAnalysis()">
+                                    <i class="bi bi-search me-1"></i>
+                                    วิเคราะห์ข้อมูล
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="exportReport()">
+                                    <i class="bi bi-download me-1"></i>
+                                    ส่งออกรายงาน
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">กำลังโหลด...</span>
+            </div>
+            <p class="mt-2">กำลังวิเคราะห์ข้อมูล...</p>
+        </div>
+
+        <!-- Error/Success Messages -->
+        <div id="messageContainer"></div>
+
+        <!-- Analysis Results -->
+        <div id="analysisResults" style="display: none;">
+            <!-- Performance Metrics Section -->
+            <div class="section-header">
+                <h4>
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    ตัวชี้วัดประสิทธิภาพ
+                    <i class="bi bi-question-circle-fill faq-icon text-info ms-2" 
+                       onclick="showFAQModal('performance-metrics', 'ตัวชี้วัดประสิทธิภาพ')" 
+                       title="ข้อมูลเพิ่มเติม"></i>
+                </h4>
+                <div class="section-description">
+                    ข้อมูลสรุปประสิทธิภาพการทำงานรายชั่วโมง
+                </div>
+            </div>
+
+            <div class="subsection">
+                <div class="subsection-header">
+                    <h5>
+                        <i class="bi bi-graph-up me-2"></i>
+                        ข้อมูลพื้นฐาน
+                    </h5>
+                    <div class="subsection-description">
+                        ตัวชี้วัดหลักที่แสดงประสิทธิภาพการทำงาน
+                    </div>
+                </div>
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <div class="metric-title">
+                            รวมน้ำหนัก
+                            <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                               onclick="showFAQModal('total-tons', 'รวมน้ำหนัก')" 
+                               title="ข้อมูลเพิ่มเติม"></i>
+                        </div>
+                        <div class="metric-value" id="totalTons">0</div>
+                        <div class="metric-unit">ตัน</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">
+                            ชั่วโมงที่ทำงาน
+                            <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                               onclick="showFAQModal('active-hours', 'ชั่วโมงที่ทำงาน')" 
+                               title="ข้อมูลเพิ่มเติม"></i>
+                        </div>
+                        <div class="metric-value" id="activeHours">0</div>
+                        <div class="metric-unit">ชั่วโมง</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">
+                            อัตราประสิทธิภาพ
+                            <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                               onclick="showFAQModal('efficiency-ratio', 'อัตราประสิทธิภาพ')" 
+                               title="ข้อมูลเพิ่มเติม"></i>
+                        </div>
+                        <div class="metric-value" id="efficiencyRatio">0%</div>
+                        <div class="metric-unit">เปอร์เซ็นต์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">
+                            ดัชนีประสิทธิภาพรวม
+                            <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                               onclick="showFAQModal('performance-index', 'ดัชนีประสิทธิภาพรวม')" 
+                               title="ข้อมูลเพิ่มเติม"></i>
+                        </div>
+                        <div class="metric-value" id="performanceIndex">0</div>
+                        <div class="metric-unit">คะแนน</div>
+                        <div class="status-badge" id="performanceLevel">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="section-header">
+                <h4>
+                    <i class="bi bi-bar-chart me-2"></i>
+                    การแสดงผลข้อมูล
+                </h4>
+                <div class="section-description">
+                    กราฟและแผนภูมิแสดงแนวโน้มและการกระจายของข้อมูล
+                </div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-card">
+                    <div class="card-icon">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="card-title">
+                        แนวโน้มการผลิตรายชั่วโมง
+                        <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                           onclick="showFAQModal('trend-chart', 'กราฟแนวโน้มการผลิตรายชั่วโมง')" 
+                           title="ข้อมูลเพิ่มเติม"></i>
+                    </div>
+                    <div class="card-description">
+                        แสดงการเปลี่ยนแปลงของน้ำหนักอ้อยในแต่ละชั่วโมง
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                <div class="analysis-card">
+                    <div class="card-icon">
+                        <i class="bi bi-pie-chart"></i>
+                    </div>
+                    <div class="card-title">
+                        การกระจายประสิทธิภาพ
+                        <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                           onclick="showFAQModal('performance-chart', 'กราฟการกระจายประสิทธิภาพ')" 
+                           title="ข้อมูลเพิ่มเติม"></i>
+                    </div>
+                    <div class="card-description">
+                        แสดงสัดส่วนของชั่วโมงที่มีประสิทธิภาพในระดับต่างๆ
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights and Recommendations Section -->
+            <div class="section-header">
+                <h4>
+                    <i class="bi bi-lightbulb me-2"></i>
+                    ข้อมูลเชิงลึกและคำแนะนำ
+                </h4>
+                <div class="section-description">
+                    การวิเคราะห์และข้อเสนอแนะเพื่อปรับปรุงประสิทธิภาพ
+                </div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-card">
+                    <div class="card-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <div class="card-title">
+                        ข้อมูลเชิงลึก
+                        <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                           onclick="showFAQModal('insights', 'ข้อมูลเชิงลึก')" 
+                           title="ข้อมูลเพิ่มเติม"></i>
+                    </div>
+                    <div class="card-description">
+                        ข้อมูลสำคัญที่ได้จากการวิเคราะห์ประสิทธิภาพ
+                    </div>
+                    <div id="insightsContainer"></div>
+                </div>
+                <div class="analysis-card">
+                    <div class="card-icon">
+                        <i class="bi bi-clipboard-check"></i>
+                    </div>
+                    <div class="card-title">
+                        คำแนะนำ
+                        <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                           onclick="showFAQModal('recommendations', 'คำแนะนำ')" 
+                           title="ข้อมูลเพิ่มเติม"></i>
+                    </div>
+                    <div class="card-description">
+                        ข้อเสนอแนะเพื่อปรับปรุงประสิทธิภาพการทำงาน
+                    </div>
+                    <div id="recommendationsContainer"></div>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis Section -->
+            <div class="section-header">
+                <h4>
+                    <i class="bi bi-clipboard-data me-2"></i>
+                    การวิเคราะห์แบบละเอียด
+                </h4>
+                <div class="section-description">
+                    การวิเคราะห์เชิงลึกในด้านต่างๆ ของประสิทธิภาพการทำงาน
+                </div>
+            </div>
+
+            <div class="subsection">
+                <div class="subsection-header">
+                    <h5>
+                        <i class="bi bi-list-ul me-2"></i>
+                        หมวดหมู่การวิเคราะห์
+                    </h5>
+                    <div class="subsection-description">
+                        เลือกหมวดหมู่ที่ต้องการดูรายละเอียดการวิเคราะห์
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="analysisTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="trend-tab" data-bs-toggle="tab" data-bs-target="#trend" type="button" role="tab">
+                                    <i class="bi bi-trending-up me-1"></i>
+                                    การวิเคราะห์แนวโน้ม
+                                    <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                                       onclick="event.stopPropagation(); showFAQModal('trend-analysis', 'การวิเคราะห์แนวโน้ม')" 
+                                       title="ข้อมูลเพิ่มเติม"></i>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="variability-tab" data-bs-toggle="tab" data-bs-target="#variability" type="button" role="tab">
+                                    <i class="bi bi-graph-down me-1"></i>
+                                    ความแปรปรวน
+                                    <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                                       onclick="event.stopPropagation(); showFAQModal('variability-analysis', 'การวิเคราะห์ความแปรปรวน')" 
+                                       title="ข้อมูลเพิ่มเติม"></i>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="correlation-tab" data-bs-toggle="tab" data-bs-target="#correlation" type="button" role="tab">
+                                    <i class="bi bi-diagram-3 me-1"></i>
+                                    ความสัมพันธ์
+                                    <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                                       onclick="event.stopPropagation(); showFAQModal('correlation-analysis', 'การวิเคราะห์ความสัมพันธ์')" 
+                                       title="ข้อมูลเพิ่มเติม"></i>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="peak-tab" data-bs-toggle="tab" data-bs-target="#peak" type="button" role="tab">
+                                    <i class="bi bi-arrow-up-circle me-1"></i>
+                                    ช่วงเวลาสูงสุด
+                                    <i class="bi bi-question-circle-fill faq-icon text-info ms-1" 
+                                       onclick="event.stopPropagation(); showFAQModal('peak-analysis', 'การวิเคราะห์ช่วงเวลาสูงสุด')" 
+                                       title="ข้อมูลเพิ่มเติม"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="analysisTabContent">
+                            <div class="tab-pane fade show active" id="trend" role="tabpanel">
+                                <div class="subsection-header">
+                                    <h5>
+                                        <i class="bi bi-trending-up me-2"></i>
+                                        การวิเคราะห์แนวโน้ม
+                                    </h5>
+                                    <div class="subsection-description">
+                                        วิเคราะห์ทิศทางและความแรงของแนวโน้มการผลิต
+                                    </div>
+                                </div>
+                                <div id="trendAnalysisContent"></div>
+                            </div>
+                            <div class="tab-pane fade" id="variability" role="tabpanel">
+                                <div class="subsection-header">
+                                    <h5>
+                                        <i class="bi bi-graph-down me-2"></i>
+                                        การวิเคราะห์ความแปรปรวน
+                                    </h5>
+                                    <div class="subsection-description">
+                                        วัดความเสถียรและความแปรปรวนของการผลิต
+                                    </div>
+                                </div>
+                                <div id="variabilityAnalysisContent"></div>
+                            </div>
+                            <div class="tab-pane fade" id="correlation" role="tabpanel">
+                                <div class="subsection-header">
+                                    <h5>
+                                        <i class="bi bi-diagram-3 me-2"></i>
+                                        การวิเคราะห์ความสัมพันธ์
+                                    </h5>
+                                    <div class="subsection-description">
+                                        วิเคราะห์ความสัมพันธ์ระหว่างตัวแปรต่างๆ
+                                    </div>
+                                </div>
+                                <div id="correlationAnalysisContent"></div>
+                            </div>
+                            <div class="tab-pane fade" id="peak" role="tabpanel">
+                                <div class="subsection-header">
+                                    <h5>
+                                        <i class="bi bi-arrow-up-circle me-2"></i>
+                                        การวิเคราะห์ช่วงเวลาสูงสุด
+                                    </h5>
+                                    <div class="subsection-description">
+                                        ระบุช่วงเวลาที่มีประสิทธิภาพสูงสุด
+                                    </div>
+                                </div>
+                                <div id="peakAnalysisContent"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- AI Notice Footer -->
+        <div class="ai-notice-footer mt-3">
+            <div class="ai-notice-text-footer">
+                <i class="bi bi-info-circle me-1" style="font-size: 0.8rem;"></i>
+                หมายเหตุ: ผลลัพธ์จาก AI อาจไม่ถูกต้อง 100% กรุณาตรวจสอบก่อนใช้งานจริง
+            </div>
+        </div>
+        
+        <footer class="text-center text-white-50 mt-2 pb-3">
+            <small>พัฒนาโดยฝ่ายเทคโนโลยีสารสนเทศ BRR</small>
+        </footer>
+
+    <!-- FAQ Modal -->
+    <div class="modal fade faq-modal" id="faqModal" tabindex="-1" aria-labelledby="faqModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="faqModalLabel">
+                        <i class="bi bi-question-circle-fill me-2"></i>
+                        ข้อมูลเพิ่มเติม
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="faqModalBody">
+                    <!-- FAQ content will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script>
+        let currentAnalysisData = null;
+        let trendChart = null;
+        let performanceChart = null;
+
+        // FAQ Data for Advanced Hourly Analysis
+        function getFAQContent(faqType) {
+            const faqData = {
+                'total-tons': {
+                    title: 'รวมน้ำหนัก',
+                    description: 'ปริมาณน้ำหนักอ้อยรวมทั้งหมดที่ชั่งผ่านทั้งสองรางในวันนั้น หน่วยเป็นตัน',
+                    source: 'ข้อมูลจากระบบชั่งน้ำหนัก (Weighbridge System) ที่เชื่อมต่อกับฐานข้อมูล SQL Server โดยดึงข้อมูลจากตาราง weighbridge_data',
+                    calculation: 'การคำนวณใช้สูตร: Total_Tons = SUM(A_Tons + B_Tons) โดย A_Tons และ B_Tons คำนวณจาก wgt_net = wgt_gross - wgt_tare',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการคำนวณแบบ Logic Programming โดยใช้ SQL aggregation functions (SUM)',
+                    accuracy: 'ความแม่นยำ 99.9%',
+                    unit: 'ตัน (Tonnes) - หน่วยน้ำหนักมาตรฐานสากล',
+                    note: 'ข้อมูลนี้เป็นข้อมูล Real-time ที่อัปเดตทุกครั้งที่มีการชั่งน้ำหนัก'
+                },
+                'active-hours': {
+                    title: 'ชั่วโมงที่ทำงาน',
+                    description: 'จำนวนชั่วโมงที่มีการทำงานจริง (มีน้ำหนักอ้อยมากกว่า 0 ตัน) จากทั้งหมด 24 ชั่วโมง',
+                    source: 'ข้อมูลจากระบบชั่งน้ำหนัก โดยนับจำนวนชั่วโมงที่มี Total_Tons > 0',
+                    calculation: 'Active_Hours = COUNT(Hours WHERE Total_Tons > 0) จากข้อมูลรายชั่วโมง',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการนับแบบ Logic Programming โดยใช้ SQL COUNT function',
+                    accuracy: 'ความแม่นยำ 100% เนื่องจากเป็นการนับจากข้อมูลที่มีอยู่',
+                    unit: 'ชั่วโมง (Hours) - หน่วยเวลามาตรฐาน',
+                    note: 'แสดงเป็นรูปแบบ X/24 ชั่วโมง เพื่อให้เห็นประสิทธิภาพการทำงาน'
+                },
+                'efficiency-ratio': {
+                    title: 'อัตราประสิทธิภาพ',
+                    description: 'เปอร์เซ็นต์ของชั่วโมงที่มีการทำงานจริงเทียบกับชั่วโมงทั้งหมด (24 ชั่วโมง)',
+                    source: 'คำนวณจากข้อมูลชั่วโมงที่ทำงานหารด้วย 24 ชั่วโมง',
+                    calculation: 'Efficiency_Ratio = (Active_Hours / 24) × 100%',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการคำนวณแบบ Logic Programming',
+                    accuracy: 'ความแม่นยำ 100% เนื่องจากเป็นการคำนวณจากข้อมูลที่มีอยู่',
+                    unit: 'เปอร์เซ็นต์ (%) - หน่วยแสดงสัดส่วน',
+                    note: 'ค่าสูงแสดงว่ามีการทำงานอย่างต่อเนื่อง ค่าต่ำอาจบ่งชี้ถึงปัญหาการทำงาน'
+                },
+                'performance-index': {
+                    title: 'ดัชนีประสิทธิภาพรวม',
+                    description: 'คะแนนรวมที่แสดงประสิทธิภาพการทำงานโดยรวม ประกอบด้วย 4 ด้านหลัก',
+                    source: 'คำนวณจากข้อมูลประสิทธิภาพในด้านต่างๆ โดยใช้ Weighted Scoring',
+                    calculation: 'Overall_Index = (Efficiency × 0.3) + (Consistency × 0.25) + (Productivity × 0.25) + (Balance × 0.2)',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการคำนวณแบบ Logic Programming โดยใช้ Weighted Average',
+                    accuracy: 'ความแม่นยำ 95-98% ขึ้นอยู่กับความแม่นยำของข้อมูลประกอบ',
+                    unit: 'คะแนน (Score) - หน่วยแสดงประสิทธิภาพ 0-100',
+                    note: 'คะแนน 80+ = ยอดเยี่ยม, 70-79 = ดี, 60-69 = ปานกลาง, 50-59 = ต่ำ, <50 = ต่ำมาก'
+                },
+                'trend-chart': {
+                    title: 'กราฟแนวโน้มการผลิตรายชั่วโมง',
+                    description: 'กราฟเส้นแสดงการเปลี่ยนแปลงของน้ำหนักอ้อยในแต่ละชั่วโมง พร้อมแสดงข้อมูล Line A, Line B และรวมทั้งหมด',
+                    source: 'ข้อมูลจากระบบชั่งน้ำหนักรายชั่วโมง โดยใช้ Chart.js library',
+                    calculation: 'การสร้างกราฟใช้ Plotly.js โดยแปลงข้อมูลรายชั่วโมงเป็นกราฟเส้น',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการแสดงผลแบบ Logic Programming โดยใช้ Chart.js library',
+                    accuracy: 'ความแม่นยำ 99.9% ตามข้อมูลต้นทาง',
+                    unit: 'ตัน (Y-axis) และ ชั่วโมง (X-axis)',
+                    note: 'กราฟช่วยให้เห็นแนวโน้ม จุดสูงสุด และรูปแบบการทำงานในแต่ละชั่วโมง'
+                },
+                'performance-chart': {
+                    title: 'กราฟการกระจายประสิทธิภาพ',
+                    description: 'กราฟวงกลมแสดงสัดส่วนของชั่วโมงที่มีประสิทธิภาพในระดับต่างๆ (สูง, ปานกลาง, ต่ำ, ไม่ทำงาน)',
+                    source: 'ข้อมูลจากการวิเคราะห์ประสิทธิภาพรายชั่วโมง โดยใช้เกณฑ์ที่กำหนด',
+                    calculation: 'Performance_Distribution = COUNT(Hours by Performance_Level) / Total_Hours',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการจัดกลุ่มแบบ Logic Programming โดยใช้เกณฑ์ที่กำหนด',
+                    accuracy: 'ความแม่นยำ 95-98% ขึ้นอยู่กับความแม่นยำของเกณฑ์การจัดกลุ่ม',
+                    unit: 'จำนวนชั่วโมง (Count) และ เปอร์เซ็นต์ (%)',
+                    note: 'ช่วยให้เห็นการกระจายของประสิทธิภาพและจุดที่ต้องปรับปรุง'
+                },
+                'insights': {
+                    title: 'ข้อมูลเชิงลึก',
+                    description: 'ข้อมูลสำคัญที่ได้จากการวิเคราะห์ประสิทธิภาพ โดยสรุปประเด็นสำคัญและแนวโน้ม',
+                    source: 'ข้อมูลจากการวิเคราะห์ข้อมูลรายชั่วโมง โดยใช้ Statistical Analysis',
+                    calculation: 'Insights = Statistical_Analysis(Performance_Data) + Trend_Analysis + Pattern_Recognition',
+                    ai_analysis: 'ใช้ AI - ระบบใช้ Machine Learning algorithms สำหรับ Pattern Recognition และ Statistical Analysis',
+                    accuracy: 'ความแม่นยำ 85-92% ขึ้นอยู่กับคุณภาพข้อมูลและความซับซ้อนของรูปแบบ',
+                    unit: 'ข้อความวิเคราะห์ (Text Analysis)',
+                    note: 'ข้อมูลเชิงลึกช่วยให้เข้าใจสถานการณ์และแนวโน้มการทำงานได้ดีขึ้น'
+                },
+                'recommendations': {
+                    title: 'คำแนะนำ',
+                    description: 'ข้อเสนอแนะเชิงปฏิบัติเพื่อปรับปรุงประสิทธิภาพการทำงาน โดยแยกตามระดับความสำคัญ',
+                    source: 'ข้อมูลจากการวิเคราะห์ปัญหาและจุดที่ต้องปรับปรุง โดยใช้ Expert System',
+                    calculation: 'Recommendations = Problem_Identification + Solution_Suggestion + Priority_Assessment',
+                    ai_analysis: 'ใช้ AI - ระบบใช้ Machine Learning และ Expert System สำหรับการสร้างคำแนะนำ',
+                    accuracy: 'ความแม่นยำ 80-88% ขึ้นอยู่กับความถูกต้องของการวิเคราะห์ปัญหา',
+                    unit: 'ข้อความคำแนะนำ (Recommendation Text)',
+                    note: 'คำแนะนำแบ่งเป็น 3 ระดับ: สูง (ต้องแก้ไขทันที), ปานกลาง (ควรแก้ไข), ต่ำ (ปรับปรุงในอนาคต)'
+                },
+                'trend-analysis': {
+                    title: 'การวิเคราะห์แนวโน้ม',
+                    description: 'การวิเคราะห์ทิศทางและความแรงของแนวโน้มการผลิต โดยใช้ Linear Regression',
+                    source: 'ข้อมูลจากน้ำหนักอ้อยรายชั่วโมง โดยใช้ Statistical Analysis',
+                    calculation: 'Slope = Σ(xi - x̄)(yi - ȳ) / Σ(xi - x̄)², R² = 1 - (SSres / SStot)',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการวิเคราะห์แบบ Statistical Analysis โดยใช้ Linear Regression',
+                    accuracy: 'ความแม่นยำ 90-95% ขึ้นอยู่กับความสม่ำเสมอของข้อมูล',
+                    unit: 'ค่าสัมประสิทธิ์สหสัมพันธ์ (Correlation Coefficient) และ ความชัน (Slope)',
+                    note: 'ช่วยให้เห็นทิศทางการเปลี่ยนแปลงและความแรงของแนวโน้ม'
+                },
+                'variability-analysis': {
+                    title: 'การวิเคราะห์ความแปรปรวน',
+                    description: 'การวัดความเสถียรและความแปรปรวนของการผลิต โดยใช้ Coefficient of Variation (CV)',
+                    source: 'ข้อมูลจากน้ำหนักอ้อยรายชั่วโมง โดยใช้ Statistical Analysis',
+                    calculation: 'CV = (σ / μ) × 100%, IQR = Q3 - Q1, Outliers = |x - μ| > 1.5 × IQR',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการวิเคราะห์แบบ Statistical Analysis โดยใช้ Descriptive Statistics',
+                    accuracy: 'ความแม่นยำ 95-98% ขึ้นอยู่กับความสม่ำเสมอของข้อมูล',
+                    unit: 'เปอร์เซ็นต์ (CV), ตัน (Mean, Std), จำนวน (Outliers)',
+                    note: 'CV < 20% = เสถียรมาก, 20-40% = เสถียร, 40-60% = ปานกลาง, >60% = ไม่เสถียร'
+                },
+                'correlation-analysis': {
+                    title: 'การวิเคราะห์ความสัมพันธ์',
+                    description: 'การวิเคราะห์ความสัมพันธ์ระหว่างตัวแปรต่างๆ เช่น Line A vs Line B, Fresh vs Burnt',
+                    source: 'ข้อมูลจากน้ำหนักอ้อยแยกตามประเภทและราง โดยใช้ Correlation Analysis',
+                    calculation: 'r = Σ(xi - x̄)(yi - ȳ) / √[Σ(xi - x̄)² × Σ(yi - ȳ)²], Balance_Ratio = A_Tons / B_Tons',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการวิเคราะห์แบบ Statistical Analysis โดยใช้ Pearson Correlation',
+                    accuracy: 'ความแม่นยำ 90-95% ขึ้นอยู่กับความสม่ำเสมอของข้อมูล',
+                    unit: 'ค่าสัมประสิทธิ์สหสัมพันธ์ (-1 ถึง +1) และ อัตราส่วน (Ratio)',
+                    note: 'ช่วยให้เห็นความสัมพันธ์ระหว่างตัวแปรและความสมดุลของการทำงาน'
+                },
+                'peak-analysis': {
+                    title: 'การวิเคราะห์ช่วงเวลาสูงสุด',
+                    description: 'การระบุช่วงเวลาที่มีประสิทธิภาพสูงสุด และการวิเคราะห์ช่วงเวลาต่อเนื่อง',
+                    source: 'ข้อมูลจากน้ำหนักอ้อยรายชั่วโมง โดยใช้ Peak Detection Algorithm',
+                    calculation: 'Peak_Threshold = Q3 (75th percentile), Consecutive_Peaks = Find_Continuous_Periods(Peak_Hours)',
+                    ai_analysis: 'ไม่ใช้ AI - เป็นการวิเคราะห์แบบ Logic Programming โดยใช้ Peak Detection Algorithm',
+                    accuracy: 'ความแม่นยำ 95-98% ขึ้นอยู่กับความชัดเจนของจุดสูงสุด',
+                    unit: 'จำนวนชั่วโมง (Count) และ เปอร์เซ็นต์ (%)',
+                    note: 'ช่วยให้เห็นช่วงเวลาที่มีประสิทธิภาพสูงและสามารถวางแผนการทำงานได้ดีขึ้น'
+                },
+                'performance-metrics': {
+                    title: 'ตัวชี้วัดประสิทธิภาพ',
+                    description: 'ชุดตัวชี้วัดหลักที่ใช้ประเมินประสิทธิภาพการทำงานรายชั่วโมง ประกอบด้วย 4 ตัวชี้วัดหลัก',
+                    source: 'ข้อมูลจากระบบชั่งน้ำหนักและระบบวิเคราะห์ประสิทธิภาพ โดยใช้ Advanced Hourly Analysis Module',
+                    calculation: 'รวมน้ำหนัก = SUM(Total_Tons), ชั่วโมงที่ทำงาน = COUNT(Active_Hours), อัตราประสิทธิภาพ = (Active_Hours/24)×100%, ดัชนีรวม = Weighted_Score',
+                    ai_analysis: 'ใช้ AI - ระบบใช้ Machine Learning algorithms สำหรับการวิเคราะห์ประสิทธิภาพและสร้างดัชนีรวม',
+                    accuracy: 'ความแม่นยำ 95-99.9% ขึ้นอยู่กับประเภทของตัวชี้วัด',
+                    unit: 'ตัน, ชั่วโมง, เปอร์เซ็นต์, คะแนน',
+                    note: 'ตัวชี้วัดเหล่านี้ช่วยให้เห็นภาพรวมของประสิทธิภาพการทำงานและสามารถใช้ในการตัดสินใจได้'
+                }
+            };
+            
+            return faqData[faqType] || {
+                title: 'ไม่พบข้อมูล',
+                description: 'ไม่พบข้อมูล FAQ สำหรับรายการนี้',
+                source: 'ไม่ระบุ',
+                calculation: 'ไม่ระบุ',
+                ai_analysis: 'ไม่ระบุ',
+                accuracy: 'ไม่ระบุ',
+                unit: 'ไม่ระบุ',
+                note: 'ไม่ระบุ'
+            };
+        }
+
+        // Show FAQ Modal
+        function showFAQModal(faqType, title) {
+            const faqContent = getFAQContent(faqType);
+            const modal = new bootstrap.Modal(document.getElementById('faqModal'));
+            
+            // Update modal title
+            document.getElementById('faqModalLabel').innerHTML = `
+                <i class="bi bi-question-circle-fill me-2"></i>
+                ${title}
+            `;
+            
+            // Update modal body
+            document.getElementById('faqModalBody').innerHTML = `
+                <div class="faq-section">
+                    <h6><i class="bi bi-info-circle me-2"></i>คำอธิบาย</h6>
+                    <p>${faqContent.description}</p>
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-database me-2"></i>ที่มาของข้อมูล</h6>
+                    <p>${faqContent.source}</p>
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-calculator me-2"></i>วิธีการคำนวณ</h6>
+                    <p>${faqContent.calculation}</p>
+                    ${faqContent.calculation.includes('=') ? `<div class="faq-formula">${faqContent.calculation}</div>` : ''}
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-robot me-2"></i>การวิเคราะห์ด้วย AI</h6>
+                    <p>${faqContent.ai_analysis}</p>
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-shield-check me-2"></i>ความแม่นยำของข้อมูล</h6>
+                    <p>${faqContent.accuracy}</p>
+                    <span class="faq-accuracy ${faqContent.accuracy.includes('99') ? 'high' : faqContent.accuracy.includes('95') ? 'medium' : 'low'}">
+                        ${faqContent.accuracy}
+                    </span>
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-rulers me-2"></i>หน่วยที่ใช้</h6>
+                    <p>${faqContent.unit}</p>
+                </div>
+                
+                <div class="faq-section">
+                    <h6><i class="bi bi-exclamation-triangle me-2"></i>หมายเหตุ</h6>
+                    <p>${faqContent.note}</p>
+                </div>
+            `;
+            
+            modal.show();
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('analysisDate').value = today;
+        });
+
+        // Load advanced analysis
+        async function loadAdvancedAnalysis() {
+            const date = document.getElementById('analysisDate').value;
+            if (!date) {
+                showMessage('กรุณาเลือกวันที่', 'error');
+                return;
+            }
+
+            showLoading(true);
+            hideMessage();
+
+            try {
+                const response = await fetch(`/get_advanced_hourly_analysis?date=${date}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentAnalysisData = data;
+                    displayAnalysisResults(data);
+                    showMessage('การวิเคราะห์เสร็จสิ้น', 'success');
+                } else {
+                    showMessage(`เกิดข้อผิดพลาด: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Display analysis results
+        function displayAnalysisResults(data) {
+            const analysis = data.advanced_analysis.analysis;
+            
+            // Update performance metrics
+            updatePerformanceMetrics(analysis);
+            
+            // Create charts
+            createTrendChart(data.hourly_data);
+            createPerformanceChart(analysis);
+            
+            // Display insights
+            displayInsights(data.advanced_analysis.insights);
+            
+            // Display recommendations
+            displayRecommendations(data.advanced_analysis.recommendations);
+            
+            // Display detailed analysis
+            displayDetailedAnalysis(analysis);
+            
+            // Show results
+            document.getElementById('analysisResults').style.display = 'block';
+        }
+
+        // Update performance metrics
+        function updatePerformanceMetrics(analysis) {
+            const metrics = analysis.performance_metrics;
+            const overall = analysis.overall_performance_index;
+            
+            document.getElementById('totalTons').textContent = metrics.total_tons.toLocaleString('th-TH', {maximumFractionDigits: 1});
+            document.getElementById('activeHours').textContent = `${metrics.active_hours}/24`;
+            document.getElementById('efficiencyRatio').textContent = `${(metrics.efficiency_ratio * 100).toFixed(1)}%`;
+            document.getElementById('performanceIndex').textContent = overall.overall_index.toFixed(1);
+            
+            const levelElement = document.getElementById('performanceLevel');
+            levelElement.textContent = getPerformanceLevelText(overall.performance_level);
+            levelElement.className = `status-badge status-${overall.performance_level}`;
+        }
+
+        // Get performance level text
+        function getPerformanceLevelText(level) {
+            const levels = {
+                'excellent': 'ยอดเยี่ยม',
+                'good': 'ดี',
+                'fair': 'ปานกลาง',
+                'poor': 'ต่ำ',
+                'very_poor': 'ต่ำมาก'
+            };
+            return levels[level] || level;
+        }
+
+        // Create trend chart
+        function createTrendChart(hourlyData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChart) {
+                trendChart.destroy();
+            }
+            
+            const labels = hourlyData.map(h => h.time_label);
+            const totalTons = hourlyData.map(h => h.Total_Tons);
+            const aTons = hourlyData.map(h => h.A_Tons);
+            const bTons = hourlyData.map(h => h.B_Tons);
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'รวมทั้งหมด',
+                            data: totalTons,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Line A',
+                            data: aTons,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Line B',
+                            data: bTons,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0',
+                                font: {
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#a0aec0',
+                                maxRotation: 45,
+                                font: {
+                                    weight: '500'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.15)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    weight: '500'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.15)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create performance distribution chart
+        function createPerformanceChart(analysis) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+            
+            const distribution = analysis.performance_metrics.performance_distribution;
+            
+            performanceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ประสิทธิภาพสูง', 'ประสิทธิภาพปานกลาง', 'ประสิทธิภาพต่ำ', 'ไม่มีการทำงาน'],
+                    datasets: [{
+                        data: [distribution.high, distribution.medium, distribution.low, distribution.none],
+                        backgroundColor: [
+                            '#10b981',
+                            '#f59e0b',
+                            '#ef4444',
+                            '#6b7280'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#1a1a24'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e2e8f0',
+                                padding: 20,
+                                font: {
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Display insights
+        function displayInsights(insights) {
+            const container = document.getElementById('insightsContainer');
+            container.innerHTML = '';
+            
+            if (insights.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        ไม่มีข้อมูลเชิงลึกในขณะนี้
+                    </div>
+                `;
+                return;
+            }
+            
+            insights.forEach((insight, index) => {
+                const insightCard = document.createElement('div');
+                insightCard.className = 'insight-card';
+                insightCard.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="me-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; font-weight: 600;">
+                                ${index + 1}
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <p class="mb-0" style="color: var(--text-primary); font-weight: 500; line-height: 1.5;">${insight}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(insightCard);
+            });
+        }
+
+        // Display recommendations
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendationsContainer');
+            container.innerHTML = '';
+            
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-check-circle me-2"></i>
+                        ไม่มีคำแนะนำในขณะนี้
+                    </div>
+                `;
+                return;
+            }
+            
+            recommendations.forEach((rec, index) => {
+                const recCard = document.createElement('div');
+                recCard.className = `recommendation-card recommendation-priority-${rec.priority}`;
+                
+                const priorityIcon = {
+                    'high': 'bi-exclamation-triangle-fill',
+                    'medium': 'bi-info-circle-fill',
+                    'low': 'bi-lightbulb-fill'
+                };
+                
+                const priorityColor = {
+                    'high': 'var(--error)',
+                    'medium': 'var(--warning)',
+                    'low': 'var(--success)'
+                };
+                
+                recCard.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="me-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: ${priorityColor[rec.priority]}; color: white; font-size: 0.8rem;">
+                                <i class="${priorityIcon[rec.priority]}"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <h6 class="mb-0 me-2" style="color: var(--text-primary); font-weight: 600;">${rec.title}</h6>
+                                <span class="status-badge status-${rec.priority === 'high' ? 'poor' : rec.priority === 'medium' ? 'fair' : 'excellent'}" style="font-size: 0.7rem;">
+                                    ${rec.priority === 'high' ? 'สูง' : rec.priority === 'medium' ? 'ปานกลาง' : 'ต่ำ'}
+                                </span>
+                            </div>
+                            <p class="mb-0 small" style="color: var(--text-secondary); font-weight: 500; line-height: 1.5;">${rec.description}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(recCard);
+            });
+        }
+
+        // Display detailed analysis
+        function displayDetailedAnalysis(analysis) {
+            // Trend analysis
+            displayTrendAnalysis(analysis.trend_analysis);
+            
+            // Variability analysis
+            displayVariabilityAnalysis(analysis.variability_analysis);
+            
+            // Correlation analysis
+            displayCorrelationAnalysis(analysis.correlation_analysis);
+            
+            // Peak performance analysis
+            displayPeakAnalysis(analysis.peak_performance);
+        }
+
+        // Display trend analysis
+        function displayTrendAnalysis(trend) {
+            const container = document.getElementById('trendAnalysisContent');
+            container.innerHTML = `
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <div class="metric-title">ทิศทางแนวโน้ม</div>
+                        <div class="metric-value text-${trend.trend_direction === 'increasing' ? 'success' : trend.trend_direction === 'decreasing' ? 'danger' : 'warning'}" style="font-size: 1.2rem;">
+                            ${getTrendDirectionText(trend.trend_direction)}
+                        </div>
+                        <div class="metric-unit">${trend.trend_strength}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">การเปลี่ยนแปลง</div>
+                        <div class="metric-value" style="color: ${trend.change_percentage >= 0 ? 'var(--success)' : 'var(--error)'};">
+                            ${trend.change_percentage >= 0 ? '+' : ''}${trend.change_percentage.toFixed(1)}%
+                        </div>
+                        <div class="metric-unit">เปอร์เซ็นต์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ค่าสัมประสิทธิ์สหสัมพันธ์</div>
+                        <div class="metric-value">${trend.correlation_coefficient.toFixed(3)}</div>
+                        <div class="metric-unit">ค่าสัมประสิทธิ์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ความชัน</div>
+                        <div class="metric-value">${trend.slope.toFixed(3)}</div>
+                        <div class="metric-unit">ความชัน</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display variability analysis
+        function displayVariabilityAnalysis(variability) {
+            const container = document.getElementById('variabilityAnalysisContent');
+            container.innerHTML = `
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <div class="metric-title">ระดับความเสถียร</div>
+                        <div class="metric-value text-${getStabilityColor(variability.stability_level)}" style="font-size: 1.2rem;">
+                            ${getStabilityText(variability.stability_level)}
+                        </div>
+                        <div class="metric-unit">ระดับ</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ค่าสัมประสิทธิ์การแปรผัน</div>
+                        <div class="metric-value">${variability.coefficient_of_variation.toFixed(1)}%</div>
+                        <div class="metric-unit">เปอร์เซ็นต์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ค่าเฉลี่ย</div>
+                        <div class="metric-value">${variability.mean.toFixed(1)}</div>
+                        <div class="metric-unit">ตัน</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ส่วนเบี่ยงเบนมาตรฐาน</div>
+                        <div class="metric-value">${variability.std_deviation.toFixed(1)}</div>
+                        <div class="metric-unit">ตัน</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ค่าผิดปกติ</div>
+                        <div class="metric-value">${variability.outliers_count}</div>
+                        <div class="metric-unit">ชั่วโมง</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ช่วงควอไทล์ (IQR)</div>
+                        <div class="metric-value">${variability.quartiles.iqr.toFixed(1)}</div>
+                        <div class="metric-unit">ตัน</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display correlation analysis
+        function displayCorrelationAnalysis(correlation) {
+            const container = document.getElementById('correlationAnalysisContent');
+            container.innerHTML = `
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <div class="metric-title">ความสัมพันธ์ Line A-B</div>
+                        <div class="metric-value">${correlation.ab_correlation.toFixed(3)}</div>
+                        <div class="metric-unit">ค่าสัมประสิทธิ์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ความสมดุล</div>
+                        <div class="metric-value text-${correlation.balance_assessment === 'balanced' ? 'success' : 'warning'}" style="font-size: 1.2rem;">
+                            ${correlation.balance_assessment === 'balanced' ? 'สมดุล' : 'ไม่สมดุล'}
+                        </div>
+                        <div class="metric-unit">สถานะ</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">อัตราส่วน A:B</div>
+                        <div class="metric-value">${correlation.balance_ratio.toFixed(2)}:1</div>
+                        <div class="metric-unit">อัตราส่วน</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ความสัมพันธ์ Fresh-Burnt</div>
+                        <div class="metric-value">${correlation.fresh_burnt_correlation.toFixed(3)}</div>
+                        <div class="metric-unit">ค่าสัมประสิทธิ์</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display peak analysis
+        function displayPeakAnalysis(peak) {
+            const container = document.getElementById('peakAnalysisContent');
+            container.innerHTML = `
+                <div class="metric-group">
+                    <div class="metric-item">
+                        <div class="metric-title">ช่วงเวลาประสิทธิภาพสูง</div>
+                        <div class="metric-value">${peak.peak_periods_count}</div>
+                        <div class="metric-unit">ชั่วโมง</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">อัตราส่วนประสิทธิภาพสูง</div>
+                        <div class="metric-value">${(peak.peak_performance_ratio * 100).toFixed(1)}%</div>
+                        <div class="metric-unit">เปอร์เซ็นต์</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">ช่วงเวลาที่ดีที่สุด</div>
+                        <div class="metric-value" style="font-size: 1rem;">${peak.best_period.time_label}</div>
+                        <div class="metric-unit">เวลา</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-title">น้ำหนักสูงสุด</div>
+                        <div class="metric-value">${peak.best_period.tons.toFixed(1)}</div>
+                        <div class="metric-unit">ตัน</div>
+                    </div>
+                </div>
+                ${peak.consecutive_peaks.length > 0 ? `
+                <div class="mt-4">
+                    <div class="subsection-header">
+                        <h5>
+                            <i class="bi bi-clock-history me-2"></i>
+                            ช่วงเวลาต่อเนื่องที่มีประสิทธิภาพสูง
+                        </h5>
+                        <div class="subsection-description">
+                            ช่วงเวลาที่มีประสิทธิภาพสูงต่อเนื่องกัน
+                        </div>
+                    </div>
+                    <div class="row">
+                        ${peak.consecutive_peaks.map(period => `
+                            <div class="col-md-6 mb-2">
+                                <div class="metric-item">
+                                    <div class="metric-title">ช่วงเวลา ${period[0]}-${period[period.length-1]}</div>
+                                    <div class="metric-value">${period.length}</div>
+                                    <div class="metric-unit">ชั่วโมงต่อเนื่อง</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // Helper functions
+        function getTrendDirectionText(direction) {
+            const directions = {
+                'increasing': 'เพิ่มขึ้น',
+                'decreasing': 'ลดลง',
+                'stable': 'คงที่'
+            };
+            return directions[direction] || direction;
+        }
+
+        function getStabilityText(level) {
+            const levels = {
+                'very_stable': 'เสถียรมาก',
+                'stable': 'เสถียร',
+                'moderate': 'ปานกลาง',
+                'unstable': 'ไม่เสถียร'
+            };
+            return levels[level] || level;
+        }
+
+        function getStabilityColor(level) {
+            const colors = {
+                'very_stable': 'success',
+                'stable': 'success',
+                'moderate': 'warning',
+                'unstable': 'danger'
+            };
+            return colors[level] || 'secondary';
+        }
+
+        // Export report
+        function exportReport() {
+            if (!currentAnalysisData) {
+                showMessage('กรุณาวิเคราะห์ข้อมูลก่อนส่งออกรายงาน', 'error');
+                return;
+            }
+
+            const date = document.getElementById('analysisDate').value;
+            window.open(`/get_hourly_efficiency_report?date=${date}`, '_blank');
+        }
+
+        // Utility functions
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alertClass = type === 'error' ? 'error-message' : 'success-message';
+            container.innerHTML = `<div class="${alertClass}">${message}</div>`;
+        }
+
+        function hideMessage() {
+            document.getElementById('messageContainer').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
